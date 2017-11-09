@@ -29,8 +29,8 @@ def arora_sparsification(X, e = None, random_seed = None):
 
     return A
 
-def bernstein_sparsification(X, e, random_seed = None):
 
+def bernstein_sparsification(X, e, random_seed = None):
     if random_seed is not None:
         np.random.seed(random_seed)
 
@@ -61,7 +61,7 @@ def bernstein_sparsification(X, e, random_seed = None):
 
     return X_bern
 
-def metropolis_sparsification(X, e, random_seed = None):
+def metropolis_sparsification(X, random_seed = None):
     X = X.tolil()
 
     if X.shape[0] != X.shape[1]:
