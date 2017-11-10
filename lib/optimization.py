@@ -10,31 +10,34 @@ def f(x, X, y, mu):
     return sparse.linalg.norm(X.dot(x) - y)**2 + mu/2*sparse.linalg.norm(x)**2
 
 
-def CCD_sparse(X, y, mu, x0, e, k_max=1e5):
+def CCD_sparse(X, y, mu, x0, e, k_max=1e5, history_elements = ("g_norm", "d_sparsity", "time", "f")):
     n = max(x0.shape)
 
-    A = sparse.hstack([y, -X]).tocsr()
+    history = {}
+    for element in history_elements:
+        history[element] = []
 
+    A = sparse.hstack([y, -X]).tocsr()
     I = sparse.eye(n+1).tolil()
     I[0][0] = 0
     I = I.tocsr()
-    H = ((A.T).dot(A) + I.multiply(mu)).T
+    H = (2*(A.T).dot(A) + I.multiply(mu)).T
     x0_ext = sparse.hstack([sparse.eye(1), x0]).tocsr()
-
 
     g_elems = []
     heap = fhm.Fibonacci_heap()
 
+    g_x = H.dot(x0_ext.T).T
+    g_norm = 0
     if n <= 1e7:    # dense vectors work significantly better if not blow memory
-        g_x = np.squeeze(H.dot(x0_ext.T).toarray())
-        for i, val in enumerate(np.array(g_x)):
+        for i, val in enumerate(np.squeeze(g_x.toarray())):
             if i == 0: continue
             g_elems.append(heap.enqueue(i, val))
-            #if i < 100: print(i, val)
+            g_norm += val**2
     else:
         k = 1
         t = 0
-        g_x = H.dot(x0_ext.T).tolil()
+        g_x = g_x.tolil()
         for i in sorted(g_x.nonzero()[0][1:]):
             while k < i:
                 g_elems.append(heap.enqueue(k, 0))
@@ -43,47 +46,46 @@ def CCD_sparse(X, y, mu, x0, e, k_max=1e5):
             k = i+1
             t+= 1
 
+    g_norm_init = g_norm
     beta = 1
-    z = x0 / beta
-    z_prev = 3 * z
-    x_prev = z_prev
-    fx_prev = np.inf
+    z = (x0 / beta).tolil()
 
     start = timeit.default_timer()
+
     for i in range(1, int(k_max)):
         min_coord = heap.min().get_value()
-        x = beta * z
-        fx = f(x.T, X, y, mu)
-        #x_prev = (beta / (1 - gamma)) * z_prev
-        # if norm(x - x_prev) < e*norm(x):      # по относительному аргументу
-        if abs(fx - fx_prev) < e:  # по относительной функции
-            # if sp.sparse.linalg.norm(X_s.dot(x.T) - y_s) <= e:  # по ошибке, согласованной со sklearn
-            stop = timeit.default_timer()
-            return z * beta, i, stop - start
+        print("%d %d"%(min_coord, np.argmin(np.squeeze(g_x.toarray()))))
 
-        gamma = 1/(i + 2)     #константный шаг
+        if g_norm <= e*g_norm_init:
+            return z * beta, "success", history
 
+        gamma = 1/(i + 1)     #константный шаг
         beta *= (1 - gamma)
         gamma_n = gamma / beta
-        z[0, min_coord] += gamma_n
 
-        delta_grad = gamma_n * H[min_coord + 1] + gamma_n*H[0] * (1 / beta - 1 / (beta / (1 - gamma)))
+        delta_grad = (gamma * H[min_coord] - gamma*g_x + gamma*H[0]).tolil()
 
-        t3 = len(H[min_coord+1].nonzero()[1])
-        t4 = len(H[0].nonzero()[1])
+        if "g_norm" in history_elements:
+            history["g_norm"].append(g_norm)
+        if "f" in history_elements:
+            x = beta * z
+            history["f"].append(f(x.T, X, y, mu))
+        if "time" in history_elements:
+            history["time"].append(timeit.default_timer() - start)
+        if "d_sparsity" in history_elements:
+            history["d_sparsity"].append(len(delta_grad.nonzero()[1]))
 
-        for k, delta in zip(delta_grad.indices, delta_grad.data):
-            if delta != 0 and k != 0:
-                k -= 1
-                new_priority = g_elems[k].get_priority() + delta
-                value = g_elems[k].get_value()
-                heap.decrease_key(entry=g_elems[k], new_priority=heap.min().get_priority() - 1)
-                heap.dequeue_min()
-                g_elems[k] = heap.enqueue(value=value, priority=new_priority)
+        for k in delta_grad.nonzero()[1]:
+            k -= 1
+            old_priority = g_elems[k].get_priority()
+            new_priority = old_priority + delta_grad[0, k+1]
+            value = g_elems[k].get_value()
+            heap.decrease_key(entry=g_elems[k], new_priority=heap.min().get_priority() - 1)
+            heap.dequeue_min()
+            g_elems[k] = heap.enqueue(value=value, priority=new_priority)
+            g_norm = g_norm - old_priority**2 + new_priority**2
 
-        x_prev = x
-        fx_prev = fx
+        z[0, min_coord-1] += gamma_n
+        g_x += delta_grad
 
-
-    stop = timeit.default_timer()
-    return z * beta, k_max, stop - start
+    return z * beta, "iterations_exceeded", history
