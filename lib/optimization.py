@@ -14,7 +14,8 @@ def g(x, X, y, mu):
 
 
 
-def CCD_sparse(X, y, mu, x0, e, k_max=1e5, history_elements = ("g_norm", "d_sparsity", "time", "f")):
+def CCD_sparse(X, y, mu, x0, e, k_max=1e5,
+               history_elements = ("g_norm", "d_sparsity", "time", "f")):
     n = max(x0.shape)
 
     history = {}
@@ -32,8 +33,9 @@ def CCD_sparse(X, y, mu, x0, e, k_max=1e5, history_elements = ("g_norm", "d_spar
     heap = fhm.Fibonacci_heap()
 
     g_x = H.dot(x0_ext.T).T
-
     g_norm = 0
+    popr = g_x - H[0]
+
     if n <= 1e7:    # dense vectors work significantly better if not blow memory
         for i, val in enumerate(np.squeeze(g_x.toarray())):
             if i == 0: continue
@@ -68,7 +70,7 @@ def CCD_sparse(X, y, mu, x0, e, k_max=1e5, history_elements = ("g_norm", "d_spar
         beta *= (1 - gamma)
         gamma_n = gamma / beta
 
-        delta_grad = (gamma * H[min_coord] - gamma*g_x + gamma*H[0]).tolil()
+        delta_grad = gamma*(H[min_coord] - popr).tolil()
 
         if "g_norm" in history_elements:
             history["g_norm"].append(g_norm)
@@ -92,5 +94,6 @@ def CCD_sparse(X, y, mu, x0, e, k_max=1e5, history_elements = ("g_norm", "d_spar
 
         z[0, min_coord-1] += gamma_n
         g_x += delta_grad
+        popr += delta_grad
 
     return z * beta, "iterations_exceeded", history
