@@ -9,6 +9,10 @@ import fibonacci_heap_mod as fhm
 def f(x, X, y, mu):
     return sparse.linalg.norm(X.dot(x) - y)**2 + mu/2*sparse.linalg.norm(x)**2
 
+def g(x, X, y, mu):
+    return 2*X.T.dot(X.dot(x.T) - y) + mu*x.T
+
+
 
 def CCD_sparse(X, y, mu, x0, e, k_max=1e5, history_elements = ("g_norm", "d_sparsity", "time", "f")):
     n = max(x0.shape)
@@ -28,6 +32,13 @@ def CCD_sparse(X, y, mu, x0, e, k_max=1e5, history_elements = ("g_norm", "d_spar
     heap = fhm.Fibonacci_heap()
 
     g_x = H.dot(x0_ext.T).T
+
+    #real_g_x = g(x0, X, y, mu)
+
+    #print(np.array(list(zip(np.squeeze(g_x.toarray())[1:], np.squeeze(real_g_x.toarray())))))
+
+    #return x0, "debug", {}
+
     g_norm = 0
     if n <= 1e7:    # dense vectors work significantly better if not blow memory
         for i, val in enumerate(np.squeeze(g_x.toarray())):
