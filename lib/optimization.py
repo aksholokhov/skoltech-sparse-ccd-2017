@@ -60,8 +60,6 @@ def CCD_sparse(X, y, mu, x0, e, k_max=1e5, history_elements = ("g_norm", "d_spar
 
     for i in range(1, int(k_max)):
         min_coord = heap.min().get_value()
-        if min_coord != np.argmin(np.squeeze(g_x.toarray())[1:]) + 1:
-            print("still fail")
 
         if g_norm <= e*g_norm_init:
             return z * beta, "success", history
@@ -83,15 +81,13 @@ def CCD_sparse(X, y, mu, x0, e, k_max=1e5, history_elements = ("g_norm", "d_spar
             history["d_sparsity"].append(len(delta_grad.nonzero()[1]))
 
         for k in delta_grad.nonzero()[1]:
-            k -= 1
-            if k < 0: continue
-            if k == 100: print("azaza")
-            old_priority = g_elems[k].get_priority()
-            new_priority = old_priority + delta_grad[0, k+1]
-            value = g_elems[k].get_value()
-            heap.decrease_key(entry=g_elems[k], new_priority=heap.min().get_priority() - 1)
+            if k  == 0: continue
+            old_priority = g_elems[k-1].get_priority()
+            new_priority = old_priority + delta_grad[0, k]
+            value = g_elems[k-1].get_value()
+            heap.decrease_key(entry=g_elems[k-1], new_priority=heap.min().get_priority() - 1)
             heap.dequeue_min()
-            g_elems[k] = heap.enqueue(value=value, priority=new_priority)
+            g_elems[k-1] = heap.enqueue(value=value, priority=new_priority)
             g_norm = g_norm - old_priority**2 + new_priority**2
 
         z[0, min_coord-1] += gamma_n
