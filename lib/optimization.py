@@ -33,12 +33,6 @@ def CCD_sparse(X, y, mu, x0, e, k_max=1e5, history_elements = ("g_norm", "d_spar
 
     g_x = H.dot(x0_ext.T).T
 
-    #real_g_x = g(x0, X, y, mu)
-
-    #print(np.array(list(zip(np.squeeze(g_x.toarray())[1:], np.squeeze(real_g_x.toarray())))))
-
-    #return x0, "debug", {}
-
     g_norm = 0
     if n <= 1e7:    # dense vectors work significantly better if not blow memory
         for i, val in enumerate(np.squeeze(g_x.toarray())):
@@ -46,6 +40,7 @@ def CCD_sparse(X, y, mu, x0, e, k_max=1e5, history_elements = ("g_norm", "d_spar
             g_elems.append(heap.enqueue(i, val))
             g_norm += val**2
     else:
+        # DOESN'T WORK
         k = 1
         t = 0
         g_x = g_x.tolil()
@@ -65,7 +60,8 @@ def CCD_sparse(X, y, mu, x0, e, k_max=1e5, history_elements = ("g_norm", "d_spar
 
     for i in range(1, int(k_max)):
         min_coord = heap.min().get_value()
-        print("%d %d"%(min_coord, np.argmin(np.squeeze(g_x.toarray()))))
+        if min_coord != np.argmin(np.squeeze(g_x.toarray())[1:]) + 1:
+            print("still fail")
 
         if g_norm <= e*g_norm_init:
             return z * beta, "success", history
@@ -88,6 +84,8 @@ def CCD_sparse(X, y, mu, x0, e, k_max=1e5, history_elements = ("g_norm", "d_spar
 
         for k in delta_grad.nonzero()[1]:
             k -= 1
+            if k < 0: continue
+            if k == 100: print("azaza")
             old_priority = g_elems[k].get_priority()
             new_priority = old_priority + delta_grad[0, k+1]
             value = g_elems[k].get_value()
