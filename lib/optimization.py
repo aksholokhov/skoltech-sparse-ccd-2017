@@ -73,7 +73,7 @@ def CCD_sparse(X, y, mu, x0, e, k_max=1e5,
         delta_grad = gamma*(H[min_coord] - popr).tolil()
 
         if "g_norm" in history_elements:
-            history["g_norm"].append(g_norm)
+            history["g_norm"].append(g_norm/g_norm_init)
         if "f" in history_elements:
             x = beta * z
             history["f"].append(f(x.T, X, y, mu))
