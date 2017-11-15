@@ -82,11 +82,12 @@ def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap", step = "constant",
             #f_x1 = f_x + alpha*(1-alpha)*p1 + alpha**2*p2
             #f_x2 = f_x + 2*alpha*(1-2*alpha)*p1 + 4*alpha**2*p2
             f_x = f(beta*z[0, 1:], X, y, mu)
-            t = z.copy()
+            t = (beta*z).copy()*(1 - alpha)
             t[0, j] += alpha
-            f_x1 = f(t[0, 1:]*beta, X, y, mu)
-            t[0, j] += alpha
-            f_x2 = f(t[0, 1:]*beta, X, y, mu)
+            f_x1 = f(t[0, 1:], X, y, mu)
+            t = (beta * z).copy() * (1 - 2*alpha)
+            t[0, j] += 2*alpha
+            f_x2 = f(t[0, 1:], X, y, mu)
             gamma = - 0.5*alpha*(4*f_x1 - 3*f_x - f_x2)/(f_x2 - 2*f_x1 + f_x)
             if abs(gamma) >= 1:
                 gamma = np.sign(gamma)*0.99
@@ -94,7 +95,7 @@ def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap", step = "constant",
             #    gamma**2*p2
 
         else:
-            gamma = 1/(i + 1)     #константный шаг
+            gamma = 1/(i + 10)     #константный шаг
         beta *= (1 - gamma)
         gamma_n = gamma / beta
 
