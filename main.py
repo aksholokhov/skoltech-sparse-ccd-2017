@@ -13,9 +13,9 @@ if __name__ == "__main__":
     e_lower_lim = X.max()
     print("%.6f%% of non-zero elements"%(100*len(X.nonzero()[1])/(n*m)))
     print("%d non-zero elements"%(len(X.nonzero()[1])))
-    start_point = sparse.rand(1, n, density=100/n).tocsr()
+    start_point = sparse.rand(1, n, density=1/n).tocsr()
     start_point /= start_point.sum()
 
-    x, message, history = CCD_sparse(X, y, mu, start_point, e=1e-3, k_max=300, stoch_grad_update=True)
+    x, message, history = CCD_sparse(X, y, mu, start_point, e=1e-3, k_max=300, step="parabolic")
 
     print(message)

@@ -7,15 +7,14 @@ import fibonacci_heap_mod as fhm
 
 
 def f(x, X, y, mu):
-    return sparse.linalg.norm(X.dot(x) - y)**2 + mu/2*sparse.linalg.norm(x)**2
+    return sparse.linalg.norm(X.dot(x.T) - y)**2 + mu/2*sparse.linalg.norm(x)**2
 
 def g(x, X, y, mu):
     return 2*X.T.dot(X.dot(x.T) - y) + mu*x.T
 
 
-
-def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap",
-               history_elements = ("g_norm", "d_sparsity", "time", "f")):
+def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap", step = "constant",
+               history_elements = ("g_norm", "d_sparsity", "time", "f", "gamma", "f_approx")):
     n = max(x0.shape)
 
     history = {}
@@ -32,6 +31,7 @@ def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap",
     g_x = H.dot(x0_ext.T).T
     g_norm = 0
     popr = g_x - H[0]
+    f_x = f(x0, X, y, mu)
 
 
     if mode is "heap":
@@ -61,7 +61,7 @@ def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap",
 
     g_norm_init = g_norm
     beta = 1
-    z = (x0 / beta).tolil()
+    z = (x0_ext / beta).tolil()
 
     start = timeit.default_timer()
 
@@ -72,9 +72,29 @@ def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap",
             min_coord = g_x[0, 1:].argmin() + 1
 
         if g_norm <= e*g_norm_init:
-            return z * beta, "success", history
+            return z[0, 1:] * beta, "success", history
 
-        gamma = 1/(i + 50)     #константный шаг
+        if step is "parabolic":
+            alpha = 0.001
+            j = min_coord
+            #p1 = (g_x[0, 0] + g_x[0, j] - g_x.dot(beta*z.T)[0, 0])
+            #p2 = (H[0, 0] + H[0, j] + H[j, 0] + H[j, j] - (beta*z).dot((H[0] + H[j]).T)[0, 0])
+            #f_x1 = f_x + alpha*(1-alpha)*p1 + alpha**2*p2
+            #f_x2 = f_x + 2*alpha*(1-2*alpha)*p1 + 4*alpha**2*p2
+            f_x = f(beta*z[0, 1:], X, y, mu)
+            t = z.copy()
+            t[0, j] += alpha
+            f_x1 = f(t[0, 1:]*beta, X, y, mu)
+            t[0, j] += alpha
+            f_x2 = f(t[0, 1:]*beta, X, y, mu)
+            gamma = - 0.5*alpha*(4*f_x1 - 3*f_x - f_x2)/(f_x2 - 2*f_x1 + f_x)
+            if abs(gamma) >= 1:
+                gamma = np.sign(gamma)*0.99
+            #f_x = f_x + gamma*(1-gamma)*p1 + \
+            #    gamma**2*p2
+
+        else:
+            gamma = 1/(i + 1)     #константный шаг
         beta *= (1 - gamma)
         gamma_n = gamma / beta
 
@@ -83,12 +103,16 @@ def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap",
         if "g_norm" in history_elements:
             history["g_norm"].append(g_norm/g_norm_init)
         if "f" in history_elements:
-            x = beta * z
-            history["f"].append(f(x.T, X, y, mu))
+            x = beta * z[0, 1:]
+            history["f"].append(f(x, X, y, mu))
+        if "f_approx" in history_elements:
+            history["f_approx"].append(f_x)
         if "time" in history_elements:
             history["time"].append(timeit.default_timer() - start)
         if "d_sparsity" in history_elements:
             history["d_sparsity"].append(len(delta_grad.nonzero()[1]))
+        if "gamma" in history_elements:
+            history["gamma"].append(gamma)
 
         if mode is "heap":
             for k in delta_grad.nonzero()[1]:
@@ -107,7 +131,8 @@ def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap",
             g_x += delta_grad
             g_norm = sparse.linalg.norm(g_x)**2 - g_x[0, 0]**2
 
-        z[0, min_coord-1] += gamma_n
+        f_x = f_x + gamma*(g_x[0, min_coord] + gamma*H[min_coord, min_coord])
+        z[0, min_coord] += gamma_n
         popr += delta_grad
 
-    return z * beta, "iterations_exceeded", history
+    return z[0, 1:] * beta, "iterations_exceeded", history
