@@ -19,7 +19,7 @@ def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap", step = "constant",
     def f_move(alpha, xAh, A, mu, x, j, yTy, fx):
         result = 2 * alpha * (1 - alpha) * xAh
         result += alpha ** 2 * (yTy + 2 * A[j].dot(A[0].T) + A[j].dot(A[j].T))
-        return result[0, 0] + mu/2*(alpha**2*2) + mu/2*(2 * alpha * (1 - alpha) * (1 + x[0, j])) + (1-alpha)**2*fx
+        return result[0, 0] - mu*alpha + mu/2*(alpha**2*2) + mu/2*(2 * alpha * (1 - alpha) * (1 + x[0, j])) + (1-alpha)**2*fx
 
     n = max(x0.shape)
 
@@ -43,10 +43,8 @@ def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap", step = "constant",
         alpha = 0.001
         AT = A.T
         Ax = A.dot(x0_ext.T).T
-        xAx = Ax.dot(Ax.T)
-        is_first_step = True
         yTy = AT[0].dot(AT[0].T)
-        prev_min_coord = 0
+        prev_min_coord = None
 
     if mode is "heap":
         g_elems = []
@@ -90,35 +88,26 @@ def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap", step = "constant",
 
         if step is "parabolic":
             x = beta*z
-            h = sparse.csr_matrix((1, n + 1))
-            h[0, 0] = 1
-            h[0, min_coord] = 1
-            if is_first_step:
-                 Ah = A.dot(h.T)
-                 xAh = Ax.dot(Ah)
-                 is_first_step = False
-            else:
-                Ax = (1 - gamma) * Ax + gamma * AT[prev_min_coord]
-                Ah = AT[min_coord] + AT[0]
-                xAh = Ax.dot(Ah.T)
 
-            f_x = f(x[0, 1:], X, y, mu)
-            #f_x = (xAx + mu/2*x.dot(x.T))[0, 0] - mu/2
-            #f_x1 = f_move(alpha, xAh, AT, mu, x, min_coord, yTy, f_x)
-            #f_x2 = f_move(2*alpha, xAh, AT, mu, x, min_coord, yTy, f_x)
+            if prev_min_coord is not None:
+                Ax = (1 - gamma) * Ax + gamma * (AT[0] + AT[prev_min_coord])
 
-            f_x = f(x[0, 1:], X, y, mu)
-            f_x1 = f(((1 - alpha)*x + alpha*h)[0, 1:], X, y, mu)
-            f_x2 = f(((1 - 2*alpha) * x + 2*alpha * h)[0, 1:], X, y, mu)
+            Ah = AT[min_coord] + AT[0]
+            xAh = Ax.dot(Ah.T)
+
+            f_x1 = f_move(alpha, xAh, AT, mu, x, min_coord, yTy, f_x)
+            f_x2 = f_move(2*alpha, xAh, AT, mu, x, min_coord, yTy, f_x)
 
             gamma = - 0.5*alpha*(4*f_x1 - 3*f_x - f_x2)/(f_x2 - 2*f_x1 + f_x)
+            f_x = f_move(gamma, xAh, AT, mu, x, min_coord, yTy, f_x)
 
             if abs(gamma) >= 1:
                 gamma = np.sign(gamma)*0.99
 
             prev_min_coord = min_coord
+
         else:
-            gamma = 1/(i + 10)     #константный шаг
+            gamma = 1/(i + 2)     #константный шаг
 
         beta *= (1 - gamma)
         gamma_n = gamma / beta
