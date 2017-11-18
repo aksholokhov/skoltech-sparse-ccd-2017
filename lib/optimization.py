@@ -19,7 +19,7 @@ def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap", step = "constant",
     def f_move(alpha, xAh, A, mu, x, j, yTy, fx):
         result = 2 * alpha * (1 - alpha) * xAh
         result += alpha ** 2 * (yTy + 2 * A[j].dot(A[0].T) + A[j].dot(A[j].T))
-        return result[0, 0] - mu*alpha + mu/2*(alpha**2*2) + mu/2*(2 * alpha * (1 - alpha) * (1 + x[0, j])) + (1-alpha)**2*fx
+        return result[0, 0] - mu*alpha + mu/2*alpha**2 + mu/2*(alpha**2*2) + mu/2*(2 * alpha * (1 - alpha) * (1 + x[0, j])) + (1-alpha)**2*fx
 
     n = max(x0.shape)
 
@@ -40,7 +40,7 @@ def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap", step = "constant",
     f_x = f(x0, X, y, mu)
 
     if step is "parabolic":
-        alpha = 0.001
+        alpha = 0.1
         AT = A.T
         Ax = A.dot(x0_ext.T).T
         yTy = AT[0].dot(AT[0].T)
@@ -88,6 +88,11 @@ def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap", step = "constant",
 
         if step is "parabolic":
             x = beta*z
+            x[0, 0] = 1
+
+            #h = sparse.csr_matrix((1, n+1))
+            #h[0, 0] = 1
+            #h[0, min_coord] = 1
 
             if prev_min_coord is not None:
                 Ax = (1 - gamma) * Ax + gamma * (AT[0] + AT[prev_min_coord])
@@ -97,6 +102,16 @@ def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap", step = "constant",
 
             f_x1 = f_move(alpha, xAh, AT, mu, x, min_coord, yTy, f_x)
             f_x2 = f_move(2*alpha, xAh, AT, mu, x, min_coord, yTy, f_x)
+
+            #f_x = f(x[0, 1:], X, y, mu)
+            #f_x1_true = f(((1 - alpha)*x + alpha*h)[0, 1:], X, y, mu)
+            #f_x2_true = f(((1 - 2*alpha) * x + 2*alpha * h)[0, 1:], X, y, mu)
+            #f_x1 = f_x1_true
+            #f_x2 = f_x2_true
+
+            #delta = f_x1 - f_x1_true
+            #delta_2 = f_x2 - f_x2_true
+            #print(delta, delta_2)
 
             gamma = - 0.5*alpha*(4*f_x1 - 3*f_x - f_x2)/(f_x2 - 2*f_x1 + f_x)
             f_x = f_move(gamma, xAh, AT, mu, x, min_coord, yTy, f_x)
