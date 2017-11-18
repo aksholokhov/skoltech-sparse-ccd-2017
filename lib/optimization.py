@@ -15,6 +15,12 @@ def g(x, X, y, mu):
 
 def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap", step = "constant",
                history_elements = ("g_norm", "d_sparsity", "time", "f", "gamma", "f_approx")):
+
+    def f_move(alpha, xAh, A, mu, x, j, yTy, fx):
+        result = 2 * alpha * (1 - alpha) * xAh
+        result += alpha ** 2 * (yTy + 2 * A[j].dot(A[0].T) + A[j].dot(A[j].T))
+        return result[0, 0] + mu/2*(alpha**2*2) + mu/2*(2 * alpha * (1 - alpha) * (1 + x[0, j])) + (1-alpha)**2*fx
+
     n = max(x0.shape)
 
     history = {}
@@ -33,9 +39,14 @@ def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap", step = "constant",
     popr = g_x - H[0]
     f_x = f(x0, X, y, mu)
 
-    AT = A.T
-    Ax = A.dot(x0_ext.T).T
-    popr_Ax = Ax - AT[0]
+    if step is "parabolic":
+        alpha = 0.001
+        AT = A.T
+        Ax = A.dot(x0_ext.T).T
+        xAx = Ax.dot(Ax.T)
+        is_first_step = True
+        yTy = AT[0].dot(AT[0].T)
+        prev_min_coord = 0
 
     if mode is "heap":
         g_elems = []
@@ -78,26 +89,34 @@ def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap", step = "constant",
             return z[0, 1:] * beta, "success", history
 
         if step is "parabolic":
-            alpha = 0.001
             x = beta*z
-            #f_x = f(x[:, 1:], X, y, mu)
-            f_x1 = (1 - alpha) ** 2 * f_x + 2 * alpha * (1 - alpha) * (Ax[0, 0] + Ax[0, min_coord]) + \
-                    + (2 + mu) * alpha ** 2 + mu * alpha * (1 - alpha) * (1 + x[0, min_coord])
-            alpha *= 2
-            f_x2 = (1 - alpha) ** 2 * f_x + 2 * alpha * (1 - alpha) * (Ax[0, 0] + Ax[0, min_coord]) + \
-                    + (2 + mu) * alpha ** 2 + mu * alpha * (1 - alpha) * (1 + x[0, min_coord])
+            h = sparse.csr_matrix((1, n + 1))
+            h[0, 0] = 1
+            h[0, min_coord] = 1
+            if is_first_step:
+                 Ah = A.dot(h.T)
+                 xAh = Ax.dot(Ah)
+                 is_first_step = False
+            else:
+                Ax = (1 - gamma) * Ax + gamma * AT[prev_min_coord]
+                Ah = AT[min_coord] + AT[0]
+                xAh = Ax.dot(Ah.T)
+
+            f_x = f(x[0, 1:], X, y, mu)
+            #f_x = (xAx + mu/2*x.dot(x.T))[0, 0] - mu/2
+            #f_x1 = f_move(alpha, xAh, AT, mu, x, min_coord, yTy, f_x)
+            #f_x2 = f_move(2*alpha, xAh, AT, mu, x, min_coord, yTy, f_x)
+
+            f_x = f(x[0, 1:], X, y, mu)
+            f_x1 = f(((1 - alpha)*x + alpha*h)[0, 1:], X, y, mu)
+            f_x2 = f(((1 - 2*alpha) * x + 2*alpha * h)[0, 1:], X, y, mu)
+
             gamma = - 0.5*alpha*(4*f_x1 - 3*f_x - f_x2)/(f_x2 - 2*f_x1 + f_x)
 
             if abs(gamma) >= 1:
                 gamma = np.sign(gamma)*0.99
 
-            f_x = (1 - gamma) ** 2 * f_x + 2 * gamma * (1 - gamma) * (Ax[0, 0] + Ax[0, min_coord]) + \
-                      + (2 + mu) * gamma ** 2 + mu * alpha * (1 - gamma) * (1 + x[0, min_coord])
-            print(f_x)
-            t = x.copy()*(1-gamma)
-            t[0, min_coord] += gamma
-            print(f(t[:, 1:], X, y, mu))
-
+            prev_min_coord = min_coord
         else:
             gamma = 1/(i + 10)     #константный шаг
 
@@ -138,13 +157,7 @@ def CCD_sparse(X, y, mu, x0, e, k_max = 1e5, mode = "heap", step = "constant",
             g_norm = sparse.linalg.norm(g_x)**2 - g_x[0, 0]**2
 
         z[0, min_coord] += gamma_n
-
         popr += delta_grad
 
-        delta_Ax =  gamma*(AT[min_coord] - popr_Ax)
-        Ax += delta_Ax
-        popr_Ax += delta_Ax
-
-        #print("%.7f = %.7f" % (f_x_new, f(beta*z[:, 1:], X, y, mu)), '\n')
 
     return z[0, 1:] * beta, "iterations_exceeded", history

@@ -47,31 +47,25 @@ if __name__ == "__main__":
     b1 = []
     c1 = []
 
-    def f_move(alpha, xAx, xAh, A, mu, x, h, j, yTy):
+    def f_move(alpha, xAx, xAh, A, mu, x, j, yTy):
         result = (1 - alpha) ** 2 * xAx + alpha ** 2 * (yTy + 2*A[j].dot(A[0].T) + A[j].dot(A[j].T))
         result += 2 * alpha * (1 - alpha) * xAh
         result += mu/2*((1 - alpha) ** 2 * x.dot(x.T))
         return result[0, 0] - mu/2 + mu/2*(alpha**2*2) + mu/2*(2 * alpha * (1 - alpha) * (1 + x[0, j]))
 
     for alpha in np.linspace(0, 1, 10):
-        f_x1 = (1 - alpha) ** 2 * Ax.dot(Ax.T) + alpha ** 2 * Ah.dot(Ah.T)
-        f_x1 += 2 * alpha * (1 - alpha) * (Ax.dot(Ah.T))
-        f_x1 += mu/2*((1 - alpha) ** 2 * x0_ext.dot(x0_ext.T) + alpha ** 2 * h.dot(h.T))
-        f_x1 += mu/2*(2 * alpha * (1 - alpha) * (x0_ext.dot(h.T)))
-        f_x1 = f_x1[0,0] - mu/2
-
-        f_x3 = f_move(alpha, Ax.dot(Ax.T), Ax.dot(Ah.T), AT, mu, x0_ext, h, min_coord, AT[0].dot(AT[0].T))
+        f_x3 = f_move(alpha, Ax.dot(Ax.T), Ax.dot(Ah.T), AT, mu, x0_ext, min_coord, AT[0].dot(AT[0].T))
 
         xt = x0_ext*(1-alpha) + h*alpha
         f_x2 = f(xt[0, 1:], X, y, mu)
-        a1.append(f_x1)
+        #a1.append(f_x1)
         b1.append(f_x2)
         c1.append(f_x3)
 
-    print(a1)
-    print(b1)
-    print(c1)
+    #print(a1)
+    #print(b1)
+    #print(c1)
 
-    #x, message, history = CCD_sparse(X, y, mu, x0, e=1e-3, k_max=5, step="parabolic")
+    x, message, history = CCD_sparse(X, y, mu, x0, e=1e-3, k_max=5, step="parabolic")
 
     #print(message)
