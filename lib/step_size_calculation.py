@@ -56,16 +56,16 @@ class RidgeParabolicStepSize(BaseStepSizeCalculator):
         return result[0, 0] - mu*alpha + mu/2*alpha**2 + mu/2*(alpha**2*2) + \
                mu/2*(2 * alpha * (1 - alpha) * (1 + x[0, j])) + (1-alpha)**2*fx
 
-    def __init__(self, A, x, mu, alpha = 0.1):
+    def __init__(self, A, x0, f_x0, mu, alpha = 0.1):
         self.__AT = A.T
-        self.__x = x
+        self.__x = x0
         self.__alpha = alpha
         self.__mu = mu
-        self.__Ax = A.dot(x.T)
+        self.__Ax = A.dot(x0.T).T
         self.__yTy = self.__AT[0].dot(self.__AT[0].T)
         self.__prev_min_coord = None
         self.__prev_gamma = None
-        self.__f_x = None
+        self.__f_x = f_x0
 
     def get_step_size(self, x, coord):
         if self.__prev_min_coord is not None:
@@ -85,4 +85,5 @@ class RidgeParabolicStepSize(BaseStepSizeCalculator):
             gamma = np.sign(gamma) * 0.99
 
         self.__prev_min_coord = coord
+        self.__prev_gamma = gamma
         return gamma

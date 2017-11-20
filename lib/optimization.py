@@ -2,9 +2,8 @@ import timeit
 from scipy import sparse
 import numpy as np
 from scipy.sparse.linalg import norm
-import fibonacci_heap_mod as fhm
 from lib.gradient_updating import HeapGradientUpdater, BasicGradientUpdater
-
+from lib.step_size_calculation import RidgeParabolicStepSize
 
 
 def f(x, X, y, mu):
@@ -39,11 +38,13 @@ def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, gradient_update_mode ="
     f_x = f(x0, X, y, mu)
 
     if step is "parabolic":
+        step_size_calculator = RidgeParabolicStepSize(A, x0_ext, f_x, mu)
         alpha = 0.1
         AT = A.T
         Ax = A.dot(x0_ext.T).T
         yTy = AT[0].dot(AT[0].T)
         prev_min_coord = None
+
 
     if gradient_update_mode is "heap":
         grad_updater = HeapGradientUpdater(g_x[0, 1:])
@@ -95,6 +96,8 @@ def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, gradient_update_mode ="
             #print(delta, delta_2)
 
             gamma = - 0.5*alpha*(4*f_x1 - 3*f_x - f_x2)/(f_x2 - 2*f_x1 + f_x)
+            gamma_2 = step_size_calculator.get_step_size(x, min_coord)
+            print(i, gamma, gamma_2)
             f_x = f_move(gamma, xAh, AT, mu, x, min_coord, yTy, f_x)
 
             if abs(gamma) >= 1:
