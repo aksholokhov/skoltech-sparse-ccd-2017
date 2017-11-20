@@ -13,7 +13,7 @@ def g(x, X, y, mu):
     return 2*X.T.dot(X.dot(x.T) - y) + mu*x.T
 
 
-def noname_algorithm(X, y, mu, x0, e, k_max = 1e5, mode ="heap", step ="constant",
+def noname_algorithm(X, y, mu, x0, e, k_max = 1e5, grad_collection_mode ="heap", step ="constant",
                      history_elements = ("g_norm", "d_sparsity", "time", "f", "gamma", "f_approx")):
 
     def f_move(alpha, xAh, A, mu, x, j, yTy, fx):
@@ -46,17 +46,19 @@ def noname_algorithm(X, y, mu, x0, e, k_max = 1e5, mode ="heap", step ="constant
         yTy = AT[0].dot(AT[0].T)
         prev_min_coord = None
 
-    if mode is "heap":
+    if grad_collection_mode is "heap":
         g_elems = []
         heap = fhm.Fibonacci_heap()
 
-        if n <= 1e7:    # dense vectors work significantly better if not blow memory
+        if n <= 1e8:    # dense vectors work significantly better if not blow memory
             for i, val in enumerate(np.squeeze(g_x.toarray())):
                 if i == 0: continue
                 g_elems.append(heap.enqueue(i, val))
                 g_norm += val**2
         else:
-            # DOESN'T WORK
+            raise Exception("This method hasn't been tested yet on dimensions n > 10^8, sorry :(")
+
+            # doesn't work now, needs testing
             k = 1
             t = 0
             g_x = g_x.tolil()
@@ -78,7 +80,7 @@ def noname_algorithm(X, y, mu, x0, e, k_max = 1e5, mode ="heap", step ="constant
     start = timeit.default_timer()
 
     for i in range(1, int(k_max)):
-        if mode is "heap":
+        if grad_collection_mode is "heap":
             min_coord = heap.min().get_value()
         else:
             min_coord = g_x[0, 1:].argmin() + 1
@@ -89,6 +91,8 @@ def noname_algorithm(X, y, mu, x0, e, k_max = 1e5, mode ="heap", step ="constant
         if step is "parabolic":
             x = beta*z
             x[0, 0] = 1
+
+            # this code in comments is still here for testing purpose only
 
             #h = sparse.csr_matrix((1, n+1))
             #h[0, 0] = 1
@@ -147,7 +151,7 @@ def noname_algorithm(X, y, mu, x0, e, k_max = 1e5, mode ="heap", step ="constant
         if "x_norm" in history_elements:
             history["x_norm"].append(sparse.linalg.norm(beta*z[0, 1:]))
 
-        if mode is "heap":
+        if grad_collection_mode is "heap":
             for k in delta_grad.nonzero()[1]:
                 if k  == 0: continue
                 old_priority = g_elems[k-1].get_priority()
