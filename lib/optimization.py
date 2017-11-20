@@ -3,6 +3,7 @@ from scipy import sparse
 import numpy as np
 from scipy.sparse.linalg import norm
 import fibonacci_heap_mod as fhm
+from lib.gradient_updating import HeapGradientUpdater
 
 
 
@@ -47,6 +48,8 @@ def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, grad_collection_mode ="
         prev_min_coord = None
 
     if grad_collection_mode is "heap":
+        grad_updater = HeapGradientUpdater(g_x[0, 1:])
+
         g_elems = []
         heap = fhm.Fibonacci_heap()
 
@@ -73,6 +76,7 @@ def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, grad_collection_mode ="
     else:
         g_norm = sparse.linalg.norm(g_x)**2 - g_x[0, 0]**2
 
+
     g_norm_init = g_norm
     beta = 1
     z = (x0_ext / beta).tolil()
@@ -82,6 +86,8 @@ def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, grad_collection_mode ="
     for i in range(1, int(k_max)):
         if grad_collection_mode is "heap":
             min_coord = heap.min().get_value()
+            min_coord_2 = grad_updater.get_coordinate() + 1
+            print("%d: %d != %d"%(i, min_coord, min_coord_2))
         else:
             min_coord = g_x[0, 1:].argmin() + 1
 
@@ -132,6 +138,8 @@ def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, grad_collection_mode ="
         gamma_n = gamma / beta
 
         delta_grad = gamma*(H[min_coord] - popr).tolil()
+
+        grad_updater.update(delta_grad[0, 1:])
 
         if "g_norm" in history_elements:
             history["g_norm"].append(g_norm/g_norm_init)
