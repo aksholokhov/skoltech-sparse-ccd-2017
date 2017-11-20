@@ -1,6 +1,6 @@
 from scipy import sparse
 import numpy as np
-from lib.optimization import noname_algorithm
+from lib.optimization import noname_algorithm_ridge
 
 
 def f(x, X, y, mu):
@@ -66,6 +66,6 @@ if __name__ == "__main__":
     #print(b1)
     #print(c1)
 
-    x, message, history = noname_algorithm(X, y, mu, x0, e=1e-3, k_max=5, step="parabolic")
+    x, message, history = noname_algorithm_ridge(X, y, mu, x0, e=1e-3, k_max=5, step="parabolic")
 
     #print(message)

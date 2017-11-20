@@ -13,8 +13,8 @@ def g(x, X, y, mu):
     return 2*X.T.dot(X.dot(x.T) - y) + mu*x.T
 
 
-def noname_algorithm(X, y, mu, x0, e, k_max = 1e5, grad_collection_mode ="heap", step ="constant",
-                     history_elements = ("g_norm", "d_sparsity", "time", "f", "gamma", "f_approx")):
+def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, grad_collection_mode ="heap", step ="constant",
+                           history_elements = ("g_norm", "d_sparsity", "time", "f", "gamma", "f_approx")):
 
     def f_move(alpha, xAh, A, mu, x, j, yTy, fx):
         result = 2 * alpha * (1 - alpha) * xAh
