@@ -3,7 +3,7 @@ from scipy import sparse
 import numpy as np
 from scipy.sparse.linalg import norm
 import fibonacci_heap_mod as fhm
-from lib.gradient_updating import HeapGradientUpdater
+from lib.gradient_updating import HeapGradientUpdater, BasicGradientUpdater
 
 
 
@@ -14,7 +14,7 @@ def g(x, X, y, mu):
     return 2*X.T.dot(X.dot(x.T) - y) + mu*x.T
 
 
-def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, grad_collection_mode ="heap", step ="constant",
+def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, gradient_update_mode ="heap", step ="constant",
                            history_elements = ("g_norm", "d_sparsity", "time", "f", "gamma", "f_approx")):
 
     def f_move(alpha, xAh, A, mu, x, j, yTy, fx):
@@ -36,7 +36,6 @@ def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, grad_collection_mode ="
     x0_ext = sparse.hstack([sparse.eye(1), x0]).tocsr()
 
     g_x = H.dot(x0_ext.T).T
-    g_norm = 0
     popr = g_x - H[0]
     f_x = f(x0, X, y, mu)
 
@@ -47,51 +46,24 @@ def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, grad_collection_mode ="
         yTy = AT[0].dot(AT[0].T)
         prev_min_coord = None
 
-    if grad_collection_mode is "heap":
+    if gradient_update_mode is "heap":
         grad_updater = HeapGradientUpdater(g_x[0, 1:])
-
-        g_elems = []
-        heap = fhm.Fibonacci_heap()
-
-        if n <= 1e8:    # dense vectors work significantly better if not blow memory
-            for i, val in enumerate(np.squeeze(g_x.toarray())):
-                if i == 0: continue
-                g_elems.append(heap.enqueue(i, val))
-                g_norm += val**2
-        else:
-            raise Exception("This method hasn't been tested yet on dimensions n > 10^8, sorry :(")
-
-            # doesn't work now, needs testing
-            k = 1
-            t = 0
-            g_x = g_x.tolil()
-            for i in sorted(g_x.nonzero()[0][1:]):
-                while k < i:
-                    g_elems.append(heap.enqueue(k, 0))
-                    k += 1
-                g_elems.append(heap.enqueue(i, g_x[i, 0]))
-                k = i+1
-                t+= 1
-
+    elif gradient_update_mode is "simple":
+        grad_updater = BasicGradientUpdater(g_x[0, 1:])
     else:
-        g_norm = sparse.linalg.norm(g_x)**2 - g_x[0, 0]**2
+        raise Exception("No such gradient update mode as %s" % (gradient_update_mode))
 
 
-    g_norm_init = g_norm
+    g_norm_init = grad_updater.get_norm()
     beta = 1
     z = (x0_ext / beta).tolil()
 
     start = timeit.default_timer()
 
     for i in range(1, int(k_max)):
-        if grad_collection_mode is "heap":
-            min_coord = heap.min().get_value()
-            min_coord_2 = grad_updater.get_coordinate() + 1
-            print("%d: %d != %d"%(i, min_coord, min_coord_2))
-        else:
-            min_coord = g_x[0, 1:].argmin() + 1
+        min_coord = grad_updater.get_coordinate() + 1
 
-        if g_norm <= e*g_norm_init:
+        if grad_updater.get_norm() <= e*g_norm_init:
             return z[0, 1:] * beta, "success", history
 
         if step is "parabolic":
@@ -142,7 +114,7 @@ def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, grad_collection_mode ="
         grad_updater.update(delta_grad[0, 1:])
 
         if "g_norm" in history_elements:
-            history["g_norm"].append(g_norm/g_norm_init)
+            history["g_norm"].append(grad_updater.get_norm()/g_norm_init)
         if "f" in history_elements:
             x = beta * z[0, 1:]
             history["f"].append(f(x, X, y, mu))
@@ -158,23 +130,6 @@ def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, grad_collection_mode ="
             history["x_sparsity"].append(z.count_nonzero())
         if "x_norm" in history_elements:
             history["x_norm"].append(sparse.linalg.norm(beta*z[0, 1:]))
-
-        if grad_collection_mode is "heap":
-            for k in delta_grad.nonzero()[1]:
-                if k  == 0: continue
-                old_priority = g_elems[k-1].get_priority()
-                new_priority = old_priority + delta_grad[0, k]
-                if old_priority > new_priority:
-                    heap.decrease_key(entry=g_elems[k-1], new_priority=new_priority)
-                else:
-                    value = g_elems[k-1].get_value()
-                    heap.decrease_key(entry=g_elems[k-1], new_priority=heap.min().get_priority() - 1)
-                    heap.dequeue_min()
-                    g_elems[k-1] = heap.enqueue(value=value, priority=new_priority)
-                g_norm = g_norm - old_priority**2 + new_priority**2
-        else:
-            g_x += delta_grad
-            g_norm = sparse.linalg.norm(g_x)**2 - g_x[0, 0]**2
 
         z[0, min_coord] += gamma_n
         popr += delta_grad
