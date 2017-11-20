@@ -13,7 +13,6 @@ def f(x, X, y, mu):
 def g(x, X, y, mu):
     return 2*X.T.dot(X.dot(x.T) - y) + mu*x.T
 
-
 def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, gradient_update_mode ="heap", step ="constant",
                            history_elements = ("g_norm", "d_sparsity", "time", "f", "gamma", "f_approx")):
 
