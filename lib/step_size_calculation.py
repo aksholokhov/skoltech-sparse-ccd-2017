@@ -87,3 +87,50 @@ class RidgeParabolicStepSize(BaseStepSizeCalculator):
         self.__prev_min_coord = coord
         self.__prev_gamma = gamma
         return gamma
+
+class LassoParabolicStepSize(BaseStepSizeCalculator):
+
+    def __f_move(self, alpha, j):
+        xAh = self.__xAh
+        A = self.__AT
+        mu = self.__mu
+        x = self.__x
+        yTy = self.__yTy
+        fx = self.__f_x
+
+        result = 2 * alpha * (1 - alpha) * xAh
+        result += alpha ** 2 * (yTy + 2 * A[j].dot(A[0].T) + A[j].dot(A[j].T))
+        return result[0, 0] - mu * alpha + mu / 2 * alpha ** 2 + mu / 2 * (alpha ** 2 * 2) + \
+               mu / 2 * (2 * alpha * (1 - alpha) * (1 + x[0, j])) + (1 - alpha) ** 2 * fx
+
+    def __init__(self, A, x0, f_x0, mu, alpha=0.1):
+        self.__AT = A.T
+        self.__x = x0
+        self.__alpha = alpha
+        self.__mu = mu
+        self.__Ax = A.dot(x0.T).T
+        self.__yTy = self.__AT[0].dot(self.__AT[0].T)
+        self.__prev_min_coord = None
+        self.__prev_gamma = None
+        self.__f_x = f_x0
+
+    def get_step_size(self, x, coord):
+        if self.__prev_min_coord is not None:
+            self.__Ax = (1 - self.__prev_gamma) * self.__Ax + \
+                        self.__prev_gamma * (self.__AT[0] + self.__AT[self.__prev_min_coord])
+
+        self.__Ah = self.__AT[coord] + self.__AT[0]
+        self.__xAh = self.__Ax.dot(self.__Ah.T)
+
+        f_x1 = self.__f_move(self.__alpha, coord)
+        f_x2 = self.__f_move(2 * self.__alpha, coord)
+
+        gamma = - 0.5 * self.__alpha * (4 * f_x1 - 3 * self.__f_x - f_x2) / (f_x2 - 2 * f_x1 + self.__f_x)
+        self.__f_x = self.__f_move(gamma, coord)
+
+        if abs(gamma) >= 1:
+            gamma = np.sign(gamma) * 0.99
+
+        self.__prev_min_coord = coord
+        self.__prev_gamma = gamma
+        return gamma
