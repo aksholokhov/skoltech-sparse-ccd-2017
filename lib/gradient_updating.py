@@ -1,5 +1,6 @@
 import numpy as np
 import fibonacci_heap_mod as fhm
+from scipy.sparse.linalg import norm
 
 class GradientUpdateTool(object):
     """
@@ -157,3 +158,6 @@ class GSGradientUpdater(GradientUpdateTool):
 
     def update(self, delta):
         self.__g += delta
+
+    def get_norm(self):
+        return norm(self.__g)

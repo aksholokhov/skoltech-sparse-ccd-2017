@@ -1,7 +1,7 @@
 import timeit
 from scipy import sparse
 from scipy.sparse.linalg import norm
-from lib.gradient_updating import RidgeHeapGradientUpdater, BasicGradientUpdater, LassoHeapGradientUpdater
+from lib.gradient_updating import RidgeHeapGradientUpdater, BasicGradientUpdater, LassoHeapGradientUpdater, GSGradientUpdater
 from lib.step_size_calculation import RidgeParabolicStepSize, ConstantStepSize
 
 
