@@ -30,7 +30,7 @@ def arora_sparsification(X, e = None, random_seed = None):
     return A
 
 
-def bernstein_sparsification(X, e, random_seed = None):
+def bernstein_sparsification(X, e, random_seed = None, n_samples = None):
     if random_seed is not None:
         np.random.seed(random_seed)
 
@@ -40,8 +40,10 @@ def bernstein_sparsification(X, e, random_seed = None):
     X = X.tolil()
     probabilities = [X[i, j] / X_1st_norm for (i, j) in zip(*X.nonzero())]
 
-    n_samples = int(np.log(sum(X.shape)) * max(X.shape) / e ** 2)
-    sparsified_indices = np.random.choice(np.arange(0, len(X.nonzero()[1])), n_samples, probabilities)
+    if n_samples is None:
+        n_samples = int(np.log(sum(X.shape)) * max(X.shape) / e ** 2)
+
+    sparsified_indices = np.random.choice(np.arange(0, len(X.nonzero()[1])), n_samples, p=probabilities)
 
     indices = list(zip(*X.nonzero()))
 

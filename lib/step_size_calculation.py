@@ -17,7 +17,7 @@ class ConstantStepSize(BaseStepSizeCalculator):
 
 class CoordParabolicStepSize(BaseStepSizeCalculator):
 
-    def __init__(self, f, alpha = 0.3, init_func_value = None):
+    def __init__(self, f, alpha = 0.1, init_func_value = None):
         self.__f = f
         self.__alpha = alpha
         self.__init_func_value = init_func_value
@@ -49,7 +49,6 @@ class RidgeParabolicStepSize(BaseStepSizeCalculator):
         x = self.__x
         yTy = self.__yTy
         fx = self.__f_x
-
 
         result = 2 * alpha * (1 - alpha) * xAh
         result += alpha ** 2 * (yTy + 2 * A[j].dot(A[0].T) + A[j].dot(A[j].T))
