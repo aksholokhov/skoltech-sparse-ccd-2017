@@ -61,9 +61,11 @@ class RidgeHeapGradientUpdater(GradientUpdateTool):
         g_elems = self.__g_elements
         heap = self.__heap
 
+        delta_arr = np.squeeze(delta.toarray())
+
         for k in delta.nonzero()[1]:
             old_priority = g_elems[k].get_priority()
-            new_priority = old_priority + delta[0, k]
+            new_priority = old_priority + delta_arr[k]
             if old_priority > new_priority:
                 heap.decrease_key(entry=g_elems[k], new_priority=new_priority)
 

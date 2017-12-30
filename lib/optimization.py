@@ -31,10 +31,9 @@ def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, gradient_update_mode ="
 
     g_x = H.dot(x0_ext.T).T
     popr = g_x - H[0]
-    f_x = f(x0, X, y, mu)
-
 
     if step is "parabolic":
+        f_x = f(x0, X, y, mu)
         step_size_calculator = RidgeParabolicStepSize(A, x0_ext, f_x, mu)
     elif step is "constant":
         step_size_calculator = ConstantStepSize(start_num=10)
@@ -69,8 +68,6 @@ def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, gradient_update_mode ="
         x = beta*z
         x[0, 0] = 1
         gamma = step_size_calculator.get_step_size(x, min_coord)
-        #gamma_true = step_size_checker.get_step_size(x[0, 1:].T, min_coord)
-        #print(gamma - gamma_true)
 
         beta *= (1 - gamma)
         gamma_n = gamma / beta
@@ -82,10 +79,9 @@ def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, gradient_update_mode ="
         if "g_norm" in history_elements:
             history["g_norm"].append(grad_updater.get_norm()/g_norm_init)
         if "f" in history_elements:
+            # VERY SLOW!!!
             x = beta * z[0, 1:]
             history["f"].append(f(x, X, y, mu))
-        if "f_approx" in history_elements:
-            history["f_approx"].append(f_x)
         if "time" in history_elements:
             history["time"].append(timeit.default_timer() - start)
         if "d_sparsity" in history_elements:
