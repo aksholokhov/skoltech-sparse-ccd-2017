@@ -148,7 +148,8 @@ class LassoHeapGradientUpdater(GradientUpdateTool):
 
         return a if a_priority < b_priority else -b
 
-class GSGradientUpdater(GradientUpdateTool):
+
+class DummyGradientUpdater(GradientUpdateTool):
     def __init__(self, g):
         self.__g = g
 
