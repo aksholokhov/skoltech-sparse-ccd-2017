@@ -16,15 +16,19 @@ class Heap(object):
     def update(self, k, v):
         raise Exception("Not implemented yet")
 
+    def get_value(self, k):
+        raise Exception("Not implemented yet")
+
 
 class BinaryHeap(Heap):
 
     def __init__(self, data):
+        print("binary")
         N = max(data.shape)
         self.__N = N
         self.__size = 0
-        self.__idx = -1*np.ones(N)
-        self.__k = -1*np.ones(N)
+        self.__idx = -1*np.ones(N).astype(int)
+        self.__k = -1*np.ones(N).astype(int)
         self.__v = -1*np.ones(N)
 
         if sparse.issparse(data):
@@ -49,8 +53,7 @@ class BinaryHeap(Heap):
 
 
     def __siftUp(self, i):
-        v = self.__v
-        while v[i] < v[int((i-1)/2)]:
+        while self.__v[i] < self.__v[int((i-1)/2)]:
             self.__swap(i, int((i-1)/2))
             i = int((i-1)/2)
 
@@ -71,6 +74,10 @@ class BinaryHeap(Heap):
 
     def update(self, k, v):
         pos = self.__idx[k]
+        if pos == -1:
+            self.insert(k, v)
+            return 0
+
         if self.__v[pos] > v:
             self.__v[pos] = v
             self.__siftUp(pos)
@@ -92,8 +99,11 @@ class BinaryHeap(Heap):
             return self.__k[0]
         return -1
 
+    def get_value(self, k):
+        return self.__v[self.__idx[k]]
 
-class fibonnacci_heap(Heap):
+
+class FibonacciHeap(Heap):
 
     def __init__(self, data):
         self.__heap = fhm.Fibonacci_heap()
@@ -105,9 +115,17 @@ class fibonnacci_heap(Heap):
         for k, v in enumerate(data):
             self.insert(k, v)
 
+        t = 1
+
 
     def get_min(self):
-        self.__heap.min().get_value()
+        m = self.__heap.min()
+        m = m.get_value()
+        return m
+
+
+    def get_value(self, k):
+        return self.__elements[k].get_priority()
 
 
     def insert(self, k, v):
@@ -118,7 +136,7 @@ class fibonnacci_heap(Heap):
         elements = self.__elements
         heap = self.__heap
 
-        if elements[k].get_priorty() > v:
+        if elements[k].get_priority() > v:
             heap.decrease_key(entry=elements[k], new_priority=v)
         else:
             value = elements[k].get_value()

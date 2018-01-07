@@ -1,7 +1,7 @@
 import timeit
 from scipy import sparse
 from scipy.sparse.linalg import norm
-from lib.gradient_updating import RidgeHeapGradientUpdater, BasicGradientUpdater, LassoHeapGradientUpdater, DummyGradientUpdater
+from lib.gradient_updating import RidgeHeapGradientUpdater, BasicGradientUpdater, LassoHeapGradientUpdater
 from lib.step_size_calculation import RidgeParabolicStepSize, ConstantStepSize, CoordParabolicStepSize
 
 
@@ -11,7 +11,7 @@ def f(x, X, y, mu):
 def g(x, X, y, mu):
     return 2*X.T.dot(X.dot(x.T) - y) + mu*x.T
 
-def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, gradient_update_mode ="heap", step ="constant",
+def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, gradient_update_mode ="heap", heap_type = "binary",  step ="constant",
                            history_elements = ("g_norm", "d_sparsity", "time", "f", "gamma", "f_approx", "preproc_time")):
 
     start = timeit.default_timer()
@@ -41,7 +41,7 @@ def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, gradient_update_mode ="
         raise Exception("No such step size calculation mode as as %s" % step)
 
     if gradient_update_mode is "heap":
-        grad_updater = RidgeHeapGradientUpdater(g_x[0, 1:])
+        grad_updater = RidgeHeapGradientUpdater(g_x[0, 1:], heap_type = heap_type)
     elif gradient_update_mode is "simple":
         grad_updater = BasicGradientUpdater(g_x[0, 1:])
     else:
@@ -62,7 +62,7 @@ def noname_algorithm_ridge(X, y, mu, x0, e, k_max = 1e5, gradient_update_mode ="
     for i in range(1, int(k_max)):
         min_coord = grad_updater.get_coordinate() + 1
 
-        if grad_updater.get_norm() <= e*g_norm_init:
+        if False:#grad_updater.get_norm() <= e*g_norm_init:
             return z[0, 1:] * beta, "success", history
 
         x = beta*z
